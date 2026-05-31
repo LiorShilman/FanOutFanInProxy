@@ -987,21 +987,24 @@ namespace TcpProxy.Dashboard.Views
             _nodes.Clear(); _arrows.Clear(); _slots.Clear();
             _bodyMap.Clear(); _portMap.Clear(); _arrowMap.Clear();
 
-            // Minimal line-by-line parser for the known proxy.yaml format
-            var lines = yaml.Split('\n');
+            var lines    = yaml.Split('\n');
             ChannelNode? cur = null;
             bool inChannels = false, inDownstreams = false, inRules = false;
-            bool inUpstream = false, inDownstream = false;
-            double xOff = 80;
+            bool inUpstream = false, inDownstream  = false;
+            double xOff = 80, yRow = 80;
+
+            // Collect routing rules; wire arrows after all nodes exist
+            var  rules       = new List<(string from, string to)>();
+            string? pendingFrom = null;
 
             foreach (var raw in lines)
             {
                 var line = raw.TrimEnd();
                 var trim = line.TrimStart();
 
-                if (trim.StartsWith("channels:"))            { inChannels = true; inDownstreams = false; inRules = false; continue; }
-                if (trim.StartsWith("downstreams:"))         { inChannels = false; inDownstreams = true; inRules = false; cur = null; continue; }
-                if (trim.StartsWith("rules:"))               { inChannels = false; inDownstreams = false; inRules = true; continue; }
+                if (trim.StartsWith("channels:"))   { inChannels = true;  inDownstreams = false; inRules = false; continue; }
+                if (trim.StartsWith("downstreams:")) { inChannels = false; inDownstreams = true;  inRules = false; cur = null; continue; }
+                if (trim.StartsWith("rules:"))       { inChannels = false; inDownstreams = false; inRules = true;  pendingFrom = null; continue; }
                 if (trim.StartsWith("reconnect:") || trim.StartsWith("queue:") || trim.StartsWith("logging:"))
                     { inChannels = false; inDownstreams = false; inRules = false; continue; }
 
@@ -1009,51 +1012,76 @@ namespace TcpProxy.Dashboard.Views
                 {
                     if (trim.StartsWith("- name:"))
                     {
-                        string name = Val(trim);
-                        cur = CreateChannelNode(xOff, 80);
-                        cur.Name = name;
+                        cur = CreateChannelNode(xOff, yRow);
+                        cur.Name = Val(trim);
                         UpdateNodeLabels(cur);
                         xOff += NodeW + 60;
+                        // Wrap to next row every 3 nodes so the canvas stays readable
+                        if (_nodes.Count % 3 == 0) { xOff = 80; yRow += NodeH + 60; }
                         inUpstream = false; inDownstream = false;
                     }
-                    else if (cur != null && trim.StartsWith("upstream:"))   { inUpstream = true; inDownstream = false; }
-                    else if (cur != null && trim.StartsWith("downstream:")) { inUpstream = false; inDownstream = true; }
+                    else if (cur != null && trim.StartsWith("upstream:"))   { inUpstream = true;  inDownstream = false; }
+                    else if (cur != null && trim.StartsWith("downstream:")) { inUpstream = false; inDownstream = true;  }
                     else if (cur != null && inUpstream)
                     {
-                        if (trim.StartsWith("protocol:")) cur.UpProtocol = Val(trim);
-                        else if (trim.StartsWith("mode:")) cur.UpMode     = Capitalize(Val(trim));
-                        else if (trim.StartsWith("host:")) cur.UpHost     = Val(trim).Trim('"');
-                        else if (trim.StartsWith("port:") && int.TryParse(Val(trim), out var p)) cur.UpPort = p;
+                        if      (trim.StartsWith("protocol:"))                                  cur.UpProtocol = Val(trim);
+                        else if (trim.StartsWith("mode:"))                                      cur.UpMode     = Capitalize(Val(trim));
+                        else if (trim.StartsWith("host:") || trim.StartsWith("listenIp:"))      cur.UpHost     = Val(trim).Trim('"');
+                        else if (trim.StartsWith("port:") && int.TryParse(Val(trim), out var p)) cur.UpPort    = p;
                         UpdateNodeLabels(cur);
                     }
                     else if (cur != null && inDownstream)
                     {
-                        if (trim.StartsWith("protocol:")) cur.DsProtocol  = Val(trim);
-                        else if (trim.StartsWith("mode:"))      cur.DsMode      = Capitalize(Val(trim));
-                        else if (trim.StartsWith("listenIp:"))  cur.DsListenIp  = Val(trim).Trim('"');
-                        else if (trim.StartsWith("port:") && int.TryParse(Val(trim), out var p)) cur.DsPort = p;
+                        if      (trim.StartsWith("protocol:"))                                  cur.DsProtocol = Val(trim);
+                        else if (trim.StartsWith("mode:"))                                      cur.DsMode     = Capitalize(Val(trim));
+                        else if (trim.StartsWith("listenIp:") || trim.StartsWith("host:"))      cur.DsListenIp = Val(trim).Trim('"');
+                        else if (trim.StartsWith("port:") && int.TryParse(Val(trim), out var p)) cur.DsPort    = p;
                         UpdateNodeLabels(cur);
                     }
                 }
-                else if (inDownstreams && trim.StartsWith("- name:"))
+                else if (inDownstreams)
                 {
-                    _slots.Add(new DsSlot { Name = Val(trim) });
-                }
-                else if (inDownstreams && _slots.Count > 0)
-                {
-                    var last = _slots[_slots.Count - 1];
-                    if (trim.StartsWith("minIntervalMs:") && int.TryParse(Val(trim), out var mn)) last.MinMs = mn;
-                    else if (trim.StartsWith("maxIntervalMs:") && int.TryParse(Val(trim), out var mx)) last.MaxMs = mx;
+                    if (trim.StartsWith("- name:")) { _slots.Add(new DsSlot { Name = Val(trim) }); }
+                    else if (_slots.Count > 0)
+                    {
+                        var last = _slots[_slots.Count - 1];
+                        if      (trim.StartsWith("minIntervalMs:") && int.TryParse(Val(trim), out var mn)) last.MinMs = mn;
+                        else if (trim.StartsWith("maxIntervalMs:") && int.TryParse(Val(trim), out var mx)) last.MaxMs = mx;
+                    }
                 }
                 else if (inRules)
                 {
                     if (trim.StartsWith("- from:"))
                     {
-                        // next line(s) will have "to:"
+                        pendingFrom = Val(trim).Trim('"');
                     }
-                    // Arrow creation handled via "from:" + "to:" — skip complex multi-line parsing;
-                    // user can draw arrows manually for loaded configs
+                    else if (trim.StartsWith("to:") && pendingFrom != null)
+                    {
+                        // Parse: to: ["CH:Role"] or to: ["A:Role", "B:Role"]
+                        var toVal = Val(trim).Trim('[', ']');
+                        foreach (var t in toVal.Split(','))
+                        {
+                            var target = t.Trim().Trim('"');
+                            if (!string.IsNullOrEmpty(target))
+                                rules.Add((pendingFrom, target));
+                        }
+                        pendingFrom = null;
+                    }
                 }
+            }
+
+            // Wire bidirectional routing arrows now that all nodes are on the canvas
+            var byName = _nodes.ToDictionary(n => n.Name);
+            foreach (var (from, to) in rules)
+            {
+                var fp = from.Split(':');
+                var tp = to.Split(':');
+                if (fp.Length < 2 || tp.Length < 2) continue;
+                if (!byName.TryGetValue(fp[0], out var fromNode)) continue;
+                if (!byName.TryGetValue(tp[0], out var toNode))   continue;
+                bool fromIsUp = fp[1].Equals("Upstream",   StringComparison.OrdinalIgnoreCase);
+                bool toIsUp   = tp[1].Equals("Upstream",   StringComparison.OrdinalIgnoreCase);
+                CreateArrow(fromNode, fromIsUp, toNode, toIsUp);
             }
         }
 
@@ -1202,9 +1230,9 @@ namespace TcpProxy.Dashboard.Views
             sb.AppendLine();
             sb.AppendLine("dashboard:");
             sb.AppendLine("  enabled: true");
-            sb.AppendLine("  statusHost: \"127.0.0.1\"");
+            sb.AppendLine("  statusHost: \"0.0.0.0\"");
             sb.AppendLine("  statusPort: 19001");
-            sb.AppendLine("  pushIntervalMs: 100");
+            sb.AppendLine("  pushIntervalMs: 200");
             sb.AppendLine("  commandPort: 19002");
 
             return sb.ToString();
