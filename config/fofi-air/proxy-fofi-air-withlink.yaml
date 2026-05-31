@@ -1,0 +1,104 @@
+proxy:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # FOFI AIR — "With Link" Config
+  #
+  # טופולוגיה זהה לקונפיג המבצעי (3 ערוצים, fan-out switch).
+  # במקום חומרה אמיתית מתחבר ל-link-sim מקומי שמדמה את LOS GW / SuperNova-A.
+  #
+  # Data path:
+  #   ACCC ──[TCP→:5100]──► FOFI AIR ──[→:6000 LOS]──► link-sim ──► FOFI GROUND
+  #                                    ──[→:6001 SNV]──► link-sim ──► FOFI GROUND
+  #
+  # Switch בין LOS ל-SNV דרך ה-dashboard — זהה למבצעי.
+  #
+  # ── שדרוג לחומרה אמיתית ─────────────────────────────────────────────────
+  #   השתמש ב-proxy-fofi-air.yaml (UDP) עם:
+  #     LOS_UPPER:    host: 10.10.2.10  port: 6000
+  #     SUPERNOVA_AIR: host: 10.10.3.10  port: 6000
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  channels:
+    # ── ACCC_IN ─────────────────────────────────────────────────────────────
+    # ACCC מתחבר לכאן. FOFI AIR מקשיב כשרת TCP.
+    - name: ACCC_IN
+      upstream:
+        protocol: Tcp
+        mode: Server
+        listenIp: "127.0.0.1"
+        port: 5100
+
+    # ── LOS_UPPER ───────────────────────────────────────────────────────────
+    # נתיב LOS — מתחבר ל-link-sim שמדמה את LOS Upper GW.
+    - name: LOS_UPPER
+      downstream:
+        protocol: Tcp
+        mode: Client
+        host: "127.0.0.1"
+        port: 6000
+
+    # ── SUPERNOVA_AIR ───────────────────────────────────────────────────────
+    # נתיב SUPERNOVA — מתחבר ל-link-sim שמדמה את SuperNova-A.
+    - name: SUPERNOVA_AIR
+      downstream:
+        protocol: Tcp
+        mode: Client
+        host: "127.0.0.1"
+        port: 6001
+
+  downstreams: []
+
+  routing:
+    rules:
+      # ---- Forward: ACCC → LOS (ברירת מחדל) ----
+      - from: "ACCC_IN:Upstream"
+        to: ["LOS_UPPER:Downstream"]
+
+      # ---- Reply: LOS → ACCC ----
+      - from: "LOS_UPPER:Upstream"
+        to: ["ACCC_IN:Downstream"]
+
+      # ---- Reply: SNV → ACCC ----
+      - from: "SUPERNOVA_AIR:Upstream"
+        to: ["ACCC_IN:Downstream"]
+
+  reconnect:
+    intervalSeconds: 3
+    maxAttempts: 0
+
+  queue:
+    maxSizePerConnection: 1000
+    overflowPolicy: DropOldest
+
+  socket:
+    noDelay: true
+    receiveBufferSize: 65536
+    sendBufferSize: 65536
+    keepAlive: true
+
+  buffer:
+    readBufferSize: 4096
+
+logging:
+  minimumLevel: Debug
+  console:
+    enabled: true
+  file:
+    enabled: true
+    path: "logs/fofi-air-withlink-.log"
+    rollingInterval: Day
+    retainedFileCount: 7
+
+metrics:
+  enabled: true
+  reportIntervalSeconds: 5
+  prometheus:
+    enabled: false
+    port: 9090
+
+dashboard:
+  enabled: true
+  statusHost: "127.0.0.1"
+  statusPort: 19001
+  pushIntervalMs: 100
+  commandPort: 19002
+  upstreamLabel: "FOFI GROUND"

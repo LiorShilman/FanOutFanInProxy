@@ -1,0 +1,240 @@
+<UserControl x:Class="TcpProxy.Dashboard.Views.RoutingPanelControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:TcpProxy.Dashboard.Views">
+
+  <UserControl.Resources>
+    <local:BoolToVisibilityConverter x:Key="BoolVis"/>
+  </UserControl.Resources>
+
+  <Border Background="#FF0C0C1A"
+          BorderBrush="{StaticResource BrCardBorder}"
+          BorderThickness="1,0,0,0">
+    <DockPanel>
+
+      <!-- ══ Header ══════════════════════════════════════════════════════════ -->
+      <Border DockPanel.Dock="Top" Background="#FF111120"
+              BorderBrush="{StaticResource BrCardBorder}" BorderThickness="0,0,0,1">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <Rectangle Grid.Column="0" Fill="{StaticResource BrAccent}"/>
+          <StackPanel Grid.Column="1" Margin="14,12,14,12">
+            <TextBlock Text="ROUTING" FontSize="13" FontWeight="Bold"
+                       Foreground="{StaticResource BrTextPrimary}"/>
+            <TextBlock Text="Live data-path configuration" FontSize="10"
+                       Foreground="{StaticResource BrTextMuted}" Margin="0,2,0,0"/>
+          </StackPanel>
+          <!-- BLOCK ALL button + command status indicator -->
+          <StackPanel Grid.Column="2" Orientation="Horizontal"
+                      VerticalAlignment="Center" Margin="0,0,10,0">
+            <Button x:Name="BtnBlockAll" Content="BLOCK ALL"
+                    Click="BtnBlockAll_Click"
+                    FontSize="9" FontWeight="Bold" Padding="7,3"
+                    Foreground="#FFF44336" Background="#1AF44336"
+                    BorderBrush="#55F44336" BorderThickness="1"
+                    Cursor="Hand" VerticalAlignment="Center"
+                    Margin="0,0,8,0">
+              <Button.Style>
+                <Style TargetType="Button">
+                  <Setter Property="Template">
+                    <Setter.Value>
+                      <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                          <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                          <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="#33F44336"/>
+                          </Trigger>
+                        </ControlTemplate.Triggers>
+                      </ControlTemplate>
+                    </Setter.Value>
+                  </Setter>
+                </Style>
+              </Button.Style>
+            </Button>
+            <Ellipse x:Name="CmdStatusDot" Width="8" Height="8"
+                     Fill="#FF3A3A5E" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            <TextBlock x:Name="CmdStatusText" Text="–" FontSize="9"
+                       Foreground="{StaticResource BrTextMuted}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- ══ Source groups ═══════════════════════════════════════════════════ -->
+      <ScrollViewer VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollBarVisibility="Disabled"
+                    Padding="10,8,6,10">
+        <ItemsControl x:Name="GroupsList">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+
+              <!-- Accent bar + card side-by-side -->
+              <Grid Margin="0,0,0,9">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="3"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Blue accent bar -->
+                <Rectangle Grid.Column="0" Fill="{StaticResource BrAccent}"
+                           RadiusX="2" RadiusY="2"/>
+
+                <!-- Card -->
+                <Border Grid.Column="1" Margin="5,0,0,0" CornerRadius="6"
+                        Background="#FF0F0F1E"
+                        BorderBrush="{StaticResource BrCardBorder}" BorderThickness="1">
+                  <StackPanel Margin="10,10,10,10">
+
+                    <!-- ── Source name row ──────────────────────────────── -->
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                      </Grid.ColumnDefinitions>
+
+                      <!-- CHANNEL : Role -->
+                      <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Channel}"
+                                   FontSize="13" FontWeight="Bold"
+                                   Foreground="{StaticResource BrAccent}"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text=" : " FontSize="13" FontWeight="Bold"
+                                   Foreground="{StaticResource BrTextMuted}"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Role}"
+                                   FontSize="13" FontWeight="Bold"
+                                   Foreground="{StaticResource BrTextPrimary}"
+                                   VerticalAlignment="Center"/>
+                      </StackPanel>
+
+                      <!-- Active count badge -->
+                      <Border Grid.Column="1" CornerRadius="8" Padding="6,2"
+                              Background="#1A4CAF50" BorderBrush="#884CAF50" BorderThickness="1"
+                              VerticalAlignment="Center"
+                              Visibility="{Binding HasActive, Converter={StaticResource BoolVis}}">
+                        <TextBlock Text="{Binding ActiveCount, StringFormat='{}{0} ✓'}"
+                                   FontSize="10" FontWeight="Bold" Foreground="#FF4CAF50"/>
+                      </Border>
+                    </Grid>
+
+                    <!-- Separator -->
+                    <Border Height="1" Background="{StaticResource BrCardBorder}" Margin="0,0,0,8"/>
+
+                    <!-- Section label -->
+                    <TextBlock Text="ROUTES TO" FontSize="9" FontWeight="Bold"
+                               Foreground="#FF505068" Margin="0,0,0,5"/>
+
+                    <!-- ── Target toggle rows ───────────────────────────── -->
+                    <ItemsControl ItemsSource="{Binding Targets}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <ToggleButton IsChecked="{Binding IsActive, Mode=TwoWay}"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Stretch"
+                                        Cursor="Hand"
+                                        Margin="0,0,0,2" Padding="0">
+                            <ToggleButton.Template>
+                              <ControlTemplate TargetType="ToggleButton">
+                                <Border x:Name="Row" CornerRadius="4" Padding="8,5" BorderThickness="1">
+                                  <Grid>
+                                    <Grid.ColumnDefinitions>
+                                      <ColumnDefinition Width="Auto"/>
+                                      <ColumnDefinition Width="*"/>
+                                      <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Status dot -->
+                                    <Ellipse x:Name="Dot" Grid.Column="0"
+                                             Width="7" Height="7"
+                                             VerticalAlignment="Center"
+                                             Margin="0,0,7,0"/>
+
+                                    <!-- TargetChannel : TargetRole -->
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                      <TextBlock x:Name="TChTB"
+                                                 Text="{Binding TargetChannel}"
+                                                 FontSize="11" FontWeight="SemiBold"
+                                                 VerticalAlignment="Center"/>
+                                      <TextBlock x:Name="TSepTB" Text=" : "
+                                                 FontSize="11" VerticalAlignment="Center"/>
+                                      <TextBlock x:Name="TRoleTB"
+                                                 Text="{Binding TargetRole}"
+                                                 FontSize="11" VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <!-- Arrow hint -->
+                                    <TextBlock x:Name="Arrow" Grid.Column="2"
+                                               Text="→" FontSize="10"
+                                               VerticalAlignment="Center"
+                                               Opacity="0" Margin="6,0,0,0"/>
+                                  </Grid>
+                                </Border>
+
+                                <ControlTemplate.Triggers>
+
+                                  <!-- Unchecked (default) -->
+                                  <Trigger Property="IsChecked" Value="False">
+                                    <Setter TargetName="Row"    Property="Background"  Value="Transparent"/>
+                                    <Setter TargetName="Row"    Property="BorderBrush" Value="Transparent"/>
+                                    <Setter TargetName="Dot"    Property="Fill"        Value="#FF3A3A5E"/>
+                                    <Setter TargetName="TChTB"  Property="Foreground"  Value="#FF666688"/>
+                                    <Setter TargetName="TSepTB" Property="Foreground"  Value="#FF444460"/>
+                                    <Setter TargetName="TRoleTB" Property="Foreground" Value="#FF666688"/>
+                                  </Trigger>
+
+                                  <!-- Checked (active) -->
+                                  <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="Row"    Property="Background"  Value="#1A4CAF50"/>
+                                    <Setter TargetName="Row"    Property="BorderBrush" Value="#664CAF50"/>
+                                    <Setter TargetName="Dot"    Property="Fill"        Value="#FF4CAF50"/>
+                                    <Setter TargetName="TChTB"  Property="Foreground"  Value="#FF4CAF50"/>
+                                    <Setter TargetName="TSepTB" Property="Foreground"  Value="#994CAF50"/>
+                                    <Setter TargetName="TRoleTB" Property="Foreground" Value="#CC4CAF50"/>
+                                    <Setter TargetName="Arrow"  Property="Foreground"  Value="#FF4CAF50"/>
+                                    <Setter TargetName="Arrow"  Property="Opacity"     Value="1"/>
+                                  </Trigger>
+
+                                  <!-- Hover (unchecked only) -->
+                                  <MultiTrigger>
+                                    <MultiTrigger.Conditions>
+                                      <Condition Property="IsMouseOver" Value="True"/>
+                                      <Condition Property="IsChecked"   Value="False"/>
+                                    </MultiTrigger.Conditions>
+                                    <Setter TargetName="Row"    Property="Background"  Value="#0F4FC3F7"/>
+                                    <Setter TargetName="Row"    Property="BorderBrush" Value="#554FC3F7"/>
+                                    <Setter TargetName="Dot"    Property="Fill"        Value="#774FC3F7"/>
+                                    <Setter TargetName="TChTB"  Property="Foreground"  Value="#FFBBBBCC"/>
+                                    <Setter TargetName="TSepTB" Property="Foreground"  Value="#FF888899"/>
+                                    <Setter TargetName="TRoleTB" Property="Foreground" Value="#FFBBBBCC"/>
+                                    <Setter TargetName="Arrow"  Property="Foreground"  Value="#774FC3F7"/>
+                                    <Setter TargetName="Arrow"  Property="Opacity"     Value="0.6"/>
+                                  </MultiTrigger>
+
+                                </ControlTemplate.Triggers>
+                              </ControlTemplate>
+                            </ToggleButton.Template>
+                          </ToggleButton>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                  </StackPanel>
+                </Border>
+              </Grid>
+
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+
+    </DockPanel>
+  </Border>
+</UserControl>

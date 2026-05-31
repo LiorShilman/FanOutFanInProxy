@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "TcpProxy.Service": {
+      "commandName": "Project",
+      "commandLineArgs": "--config \"...\\config\\fofi-air\\proxy-fofi-air-3machine.yaml\""
+    }
+  }
+}

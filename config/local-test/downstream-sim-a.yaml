@@ -1,0 +1,12 @@
+simulator:
+  name: DownstreamA
+  mode: Generator
+  generatorMinIntervalMs: 100
+  generatorMaxIntervalMs: 700
+  channels:
+    - name: MC
+      proxyHost: "127.0.0.1"
+      proxyPort: 28100          # Connects TO proxy
+    - name: DATA
+      proxyHost: "127.0.0.1"
+      proxyPort: 28101          # Connects TO proxy

@@ -1,0 +1,16 @@
+simulator:
+  # GCCC Simulator
+  # Listens as a TCP server on :5300.  FOFI GROUND connects to it.
+  # Receives all data that originated from ACCC (end-to-end verification).
+  # Also sends occasional acknowledgment packets back toward ACCC.
+  mode: TrafficGenerator
+  channels:
+    - name: GCCC_LINK
+      listenIp: "127.0.0.1"
+      listenPort: 5300      # FOFI GROUND upstream client connects here
+
+  trafficGenerator:
+    minIntervalMs: 2000
+    maxIntervalMs: 5000
+    payloadSize: 48
+    packetFormat: Structured

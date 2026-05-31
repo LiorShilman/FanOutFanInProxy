@@ -1,0 +1,120 @@
+proxy:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # FOFI AIR — Single-Machine Loopback Test
+  #
+  # ACCC->GCCC (forward):
+  #   localhost:5000 -> FOFI AIR -> localhost:5200/5202 -> FOFI GROUND -> localhost:7000
+  #
+  # GCCC->ACCC (reverse):
+  #   localhost:7100 -> FOFI GROUND -> localhost:5210/5212 -> FOFI AIR -> localhost:5001
+  #
+  # Run together with proxy-fofi-ground-1machine.yaml and test-1machine.ps1
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  channels:
+    # ── ACCC->GCCC (forward) ─────────────────────────────────────────────────
+    - name: ACCC_IN
+      upstream:
+        protocol: Udp
+        mode: Server
+        listenIp: "0.0.0.0"
+        port: 5000
+
+    - name: LOS_UPPER
+      downstream:
+        protocol: Udp
+        mode: Client
+        host: "127.0.0.1"
+        port: 5200
+
+    - name: SUPERNOVA_AIR
+      downstream:
+        protocol: Udp
+        mode: Client
+        host: "127.0.0.1"
+        port: 5202
+
+    # ── GCCC->ACCC (reverse) ─────────────────────────────────────────────────
+    - name: LOS_REV
+      upstream:
+        protocol: Udp
+        mode: Server
+        listenIp: "0.0.0.0"
+        port: 5210
+
+    - name: SNV_REV
+      upstream:
+        protocol: Udp
+        mode: Server
+        listenIp: "0.0.0.0"
+        port: 5212
+
+    - name: ACCC_OUT
+      downstream:
+        protocol: Udp
+        mode: Client
+        host: "127.0.0.1"
+        port: 5001
+
+  downstreams: []
+
+  routing:
+    rules:
+      # ACCC->GCCC (forward)
+      - from: "ACCC_IN:Upstream"
+        to: ["LOS_UPPER:Downstream"]
+
+      - from: "LOS_UPPER:Upstream"
+        to: ["ACCC_IN:Downstream"]
+
+      - from: "SUPERNOVA_AIR:Upstream"
+        to: ["ACCC_IN:Downstream"]
+
+      # GCCC->ACCC (reverse)
+      - from: "LOS_REV:Upstream"
+        to: ["ACCC_OUT:Downstream"]
+
+      - from: "SNV_REV:Upstream"
+        to: ["ACCC_OUT:Downstream"]
+
+  reconnect:
+    intervalSeconds: 3
+    maxAttempts: 0
+
+  queue:
+    maxSizePerConnection: 1000
+    overflowPolicy: DropOldest
+
+  socket:
+    noDelay: true
+    receiveBufferSize: 65536
+    sendBufferSize: 65536
+    keepAlive: true
+
+  buffer:
+    readBufferSize: 4096
+
+logging:
+  minimumLevel: Information
+  console:
+    enabled: true
+  file:
+    enabled: true
+    path: "logs/fofi-air-1machine-.log"
+    rollingInterval: Day
+    retainedFileCount: 7
+
+metrics:
+  enabled: true
+  reportIntervalSeconds: 10
+  prometheus:
+    enabled: false
+    port: 9090
+
+dashboard:
+  enabled: true
+  statusHost: "0.0.0.0"
+  statusPort: 19001
+  pushIntervalMs: 200
+  commandPort: 19002
+  upstreamLabel: "FOFI GROUND"

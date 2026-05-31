@@ -1,0 +1,19 @@
+simulator:
+  mode: TrafficGenerator
+  channels:
+    - name: MC
+      listenIp: "127.0.0.1"
+      listenPort: 28000         # Upstream server — proxy connects here
+    - name: DATA
+      listenIp: "127.0.0.1"
+      listenPort: 28001         # Upstream server — proxy connects here
+
+  trafficGenerator:
+    minIntervalMs: 150
+    maxIntervalMs: 900
+    payloadSize: 64
+    packetFormat: Structured
+
+  burst:
+    packetCount: 5000
+    payloadSize: 512

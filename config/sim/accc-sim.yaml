@@ -1,0 +1,12 @@
+simulator:
+  # ACCC Simulator
+  # Generates data traffic and sends it to FOFI AIR (acts as the ACCC system).
+  # Connects as a TCP client to FOFI AIR's downstream listen port.
+  name: ACCC
+  mode: Generator
+  generatorMinIntervalMs: 500
+  generatorMaxIntervalMs: 2000
+  channels:
+    - name: ACCC_LINK
+      proxyHost: "127.0.0.1"
+      proxyPort: 5100       # FOFI AIR downstream server port

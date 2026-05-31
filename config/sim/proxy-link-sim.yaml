@@ -1,0 +1,102 @@
+proxy:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LINK SIM — מדמה LOS Upper GW + SuperNova-A (שני נתיבים)
+  #
+  # משמש יחד עם proxy-fofi-air-withlink.yaml.
+  # FOFI AIR מתחבר לכאן במקום לחומרה אמיתית.
+  # ה-link-sim מעביר שקוף לפורטי FOFI GROUND.
+  #
+  # Data path:
+  #   FOFI AIR ──[→:6000 LOS]──► LOS_LINK  ──[→:5200]──► FOFI GROUND
+  #   FOFI AIR ──[→:6001 SNV]──► SNV_LINK  ──[→:5202]──► FOFI GROUND
+  #
+  # ── כשמגיעה חומרה אמיתית ────────────────────────────────────────────────
+  #   עצור proxy-link-sim לחלוטין.
+  #   עבור ל-proxy-fofi-air.yaml (UDP) עם IPs האמיתיים.
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  channels:
+    # ── LOS_LINK ────────────────────────────────────────────────────────────
+    # מדמה LOS Upper GW.
+    # FOFI AIR מתחבר לפורט :6000 ← link-sim מחבר ← FOFI GROUND :5200
+    - name: LOS_LINK
+      upstream:
+        protocol: Tcp
+        mode: Client
+        host: "127.0.0.1"
+        port: 5200          # FOFI GROUND מקשיב כאן (LOS_IN:Downstream)
+      downstream:
+        protocol: Tcp
+        mode: Server
+        listenIp: "127.0.0.1"
+        port: 6000          # FOFI AIR (LOS_UPPER) מתחבר כאן
+
+    # ── SNV_LINK ────────────────────────────────────────────────────────────
+    # מדמה SuperNova-A.
+    # FOFI AIR מתחבר לפורט :6001 ← link-sim מחבר ← FOFI GROUND :5202
+    - name: SNV_LINK
+      upstream:
+        protocol: Tcp
+        mode: Client
+        host: "127.0.0.1"
+        port: 5202          # FOFI GROUND מקשיב כאן (SNV_IN:Downstream)
+      downstream:
+        protocol: Tcp
+        mode: Server
+        listenIp: "127.0.0.1"
+        port: 6001          # FOFI AIR (SUPERNOVA_AIR) מתחבר כאן
+
+  downstreams: []
+
+  routing:
+    rules:
+      - from: "LOS_LINK:Downstream"
+        to: ["LOS_LINK:Upstream"]
+      - from: "LOS_LINK:Upstream"
+        to: ["LOS_LINK:Downstream"]
+
+      - from: "SNV_LINK:Downstream"
+        to: ["SNV_LINK:Upstream"]
+      - from: "SNV_LINK:Upstream"
+        to: ["SNV_LINK:Downstream"]
+
+  reconnect:
+    intervalSeconds: 3
+    maxAttempts: 0
+
+  queue:
+    maxSizePerConnection: 1000
+    overflowPolicy: DropOldest
+
+  socket:
+    noDelay: true
+    receiveBufferSize: 65536
+    sendBufferSize: 65536
+    keepAlive: true
+
+  buffer:
+    readBufferSize: 4096
+
+logging:
+  minimumLevel: Information
+  console:
+    enabled: true
+  file:
+    enabled: false
+    path: "logs/link-sim-.log"
+    rollingInterval: Day
+    retainedFileCount: 3
+
+metrics:
+  enabled: false
+  reportIntervalSeconds: 30
+  prometheus:
+    enabled: false
+    port: 9095
+
+dashboard:
+  enabled: false
+  statusHost: "127.0.0.1"
+  statusPort: 19021
+  pushIntervalMs: 500
+  commandPort: 19022

@@ -1,0 +1,94 @@
+proxy:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # FOFI GROUND — Ground Fan-Out/Fan-In Proxy
+  # Role  : Receives data from SuperNova-G (ground relay) and forwards it
+  #         to GCCC. Also routes GCCC replies back up through SuperNova-G.
+  #
+  # Network topology (FOFI GROUND side):
+  #   SuperNova-G (10.10.4.10)  ──connects-to──►  SUPERNOVA_GND  Server  :5000
+  #   GCCC_OUT channel          ──connects-to──►  GCCC            10.10.5.10:7000
+  #
+  # Data flow:
+  #   SuperNova-G → FOFI GROUND → GCCC
+  #   GCCC → FOFI GROUND → SuperNova-G → SuperNova-A → FOFI AIR → ACCC
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  channels:
+    # ── SUPERNOVA_GND ────────────────────────────────────────────────────────
+    # SuperNova-G is the upstream source on the ground segment.
+    # FOFI GROUND listens as a server so that SuperNova-G connects in.
+    - name: SUPERNOVA_GND
+      upstream:
+        protocol: Udp
+        mode: Server
+        listenIp: "0.0.0.0"
+        port: 5000              # SuperNova-G (10.10.4.10) connects here
+
+    # ── GCCC_OUT ─────────────────────────────────────────────────────────────
+    # FOFI GROUND connects out to GCCC as a client.
+    # GCCC is the final consumer of data originating from ACCC.
+    - name: GCCC_OUT
+      downstream:
+        protocol: Udp
+        mode: Client
+        host: "10.10.5.10"
+        port: 7000              # GCCC address
+
+  # ── Downstream slots ──────────────────────────────────────────────────────
+  # No simulator downstreams — FOFI GROUND talks to real hardware.
+  downstreams: []
+
+  # ── Routing rules ─────────────────────────────────────────────────────────
+  # Forward path : SuperNova-G → GCCC
+  # Reverse path : GCCC replies → SuperNova-G (travels back up to ACCC)
+  routing:
+    rules:
+      # ---- Forward: SuperNova-G → GCCC ----
+      - from: "SUPERNOVA_GND:Upstream"
+        to: ["GCCC_OUT:Downstream"]
+
+      # ---- Reverse: GCCC reply → SuperNova-G ----
+      - from: "GCCC_OUT:Upstream"
+        to: ["SUPERNOVA_GND:Downstream"]
+
+  reconnect:
+    intervalSeconds: 5
+    maxAttempts: 0              # Retry indefinitely
+
+  queue:
+    maxSizePerConnection: 1000
+    overflowPolicy: DropOldest
+
+  socket:
+    noDelay: true
+    receiveBufferSize: 65536
+    sendBufferSize: 65536
+    keepAlive: true
+
+  buffer:
+    readBufferSize: 4096
+
+logging:
+  minimumLevel: Information
+  console:
+    enabled: true
+  file:
+    enabled: true
+    path: "logs/fofi-ground-.log"
+    rollingInterval: Day
+    retainedFileCount: 14
+
+metrics:
+  enabled: true
+  reportIntervalSeconds: 10
+  prometheus:
+    enabled: false
+    port: 9090
+
+dashboard:
+  enabled: true
+  statusHost: "0.0.0.0"
+  statusPort: 19011
+  pushIntervalMs: 200
+  commandPort: 19012
+  upstreamLabel: "GCCC"

@@ -1,0 +1,95 @@
+proxy:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # FOFI AIR — 2-Machine UDP Test Config
+  #
+  # Setup:
+  #   Machine B (this proxy) listens on port 5000.
+  #   Machine A sends UDP to Machine B:5000 and listens on ports 9001 / 9002.
+  #
+  # Test flow:
+  #   Machine A → (UDP) → MachineB:5000 → proxy → (UDP) → MachineA:9001   (LOS path)
+  #                                               ↕ switch via dashboard
+  #                                     → (UDP) → MachineA:9002   (SUPERNOVA path)
+  #
+  # !! Replace MACHINE_A_IP below with Machine A's actual IP address !!
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  channels:
+    # ── ACCC_IN ─────────────────────────────────────────────────────────────
+    # Listens for incoming UDP packets from Machine A.
+    - name: ACCC_IN
+      upstream:
+        protocol: Udp
+        mode: Server
+        listenIp: "0.0.0.0"
+        port: 5000
+
+    # ── LOS_UPPER ───────────────────────────────────────────────────────────
+    # Forwards packets to Machine A on port 9001 (LOS path).
+    - name: LOS_UPPER
+      downstream:
+        protocol: Udp
+        mode: Client
+        host: "MACHINE_A_IP"    # <-- replace with Machine A's IP
+        port: 9001
+
+    # ── SUPERNOVA_AIR ───────────────────────────────────────────────────────
+    # Forwards packets to Machine A on port 9002 (SUPERNOVA path).
+    - name: SUPERNOVA_AIR
+      downstream:
+        protocol: Udp
+        mode: Client
+        host: "MACHINE_A_IP"    # <-- replace with Machine A's IP
+        port: 9002
+
+  downstreams: []
+
+  # ── Routing ───────────────────────────────────────────────────────────────
+  # Forward only — no reverse rules (Machine A is not sending replies).
+  # Use the dashboard to switch between LOS_UPPER and SUPERNOVA_AIR at runtime.
+  routing:
+    rules:
+      - from: "ACCC_IN:Upstream"
+        to: ["LOS_UPPER:Downstream"]   # default: LOS path
+
+  reconnect:
+    intervalSeconds: 5
+    maxAttempts: 0
+
+  queue:
+    maxSizePerConnection: 1000
+    overflowPolicy: DropOldest
+
+  socket:
+    noDelay: true
+    receiveBufferSize: 65536
+    sendBufferSize: 65536
+    keepAlive: true
+
+  buffer:
+    readBufferSize: 4096
+
+logging:
+  minimumLevel: Information
+  console:
+    enabled: true
+  file:
+    enabled: true
+    path: "logs/fofi-air-test-.log"
+    rollingInterval: Day
+    retainedFileCount: 7
+
+metrics:
+  enabled: true
+  reportIntervalSeconds: 10
+  prometheus:
+    enabled: false
+    port: 9090
+
+dashboard:
+  enabled: true
+  statusHost: "0.0.0.0"
+  statusPort: 19001
+  pushIntervalMs: 200
+  commandPort: 19002
+  upstreamLabel: "FOFI GROUND"

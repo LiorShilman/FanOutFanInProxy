@@ -1,0 +1,118 @@
+proxy:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # FOFI AIR — Airborne Fan-Out/Fan-In Proxy
+  # Role  : Receives data from ACCC, routes it to either LOS-Upper or
+  #         SuperNova-Air (selectable via dashboard at runtime).
+  #
+  # Network topology (FOFI AIR side):
+  #   ACCC  (10.10.1.10)  ──connects-to──►  ACCC_IN  Server  :5000
+  #   LOS_UPPER  channel  ──connects-to──►  LOS-Upper GW  10.10.2.10:6000
+  #   SUPERNOVA_AIR chan  ──connects-to──►  SuperNova-A   10.10.3.10:6000
+  #
+  # Default routing  : ACCC_IN → LOS_UPPER  (direct LOS path)
+  # Alternate route  : ACCC_IN → SUPERNOVA_AIR  (toggle via dashboard)
+  # Reverse path     : outbound replies routed back to ACCC_IN:Upstream
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  channels:
+    # ── ACCC_IN ─────────────────────────────────────────────────────────────
+    # ACCC is the upstream data source. FOFI AIR listens as a server so that
+    # ACCC connects in to it.
+    - name: ACCC_IN
+      upstream:
+        protocol: Udp
+        mode: Server
+        listenIp: "0.0.0.0"
+        port: 5000              # ACCC (10.10.1.10) connects here
+
+    # ── LOS_UPPER ───────────────────────────────────────────────────────────
+    # Direct Line-Of-Sight path to GCCC (through LOS upper gateway).
+    # FOFI AIR connects out to the LOS upper gateway.
+    - name: LOS_UPPER
+      downstream:
+        protocol: Udp
+        mode: Client
+        host: "10.10.2.10"
+        port: 6000              # LOS upper gateway address
+
+    # ── SUPERNOVA_AIR ───────────────────────────────────────────────────────
+    # Alternate path through SuperNova relay chain.
+    # FOFI AIR connects out to SuperNova-A (airborne unit).
+    - name: SUPERNOVA_AIR
+      downstream:
+        protocol: Udp
+        mode: Client
+        host: "10.10.3.10"
+        port: 6000              # SuperNova-A address
+
+  # ── Downstream slots ──────────────────────────────────────────────────────
+  # No simulator downstreams — FOFI AIR talks to real hardware.
+  downstreams: []
+
+  # ── Routing rules ─────────────────────────────────────────────────────────
+  # DEFAULT: ACCC → LOS_UPPER  (direct LOS path — active when LOS is available)
+  # TO SWITCH to SuperNova path at runtime: use the dashboard to disable the
+  # LOS_UPPER rule and enable the SUPERNOVA_AIR rule below.
+  #
+  # Reply path: LOS_UPPER / SUPERNOVA_AIR upstream replies are fan-in'd back
+  # to ACCC_IN.
+  routing:
+    rules:
+      # ---- Outbound: ACCC → LOS (default active path) ----
+      - from: "ACCC_IN:Upstream"
+        to: ["LOS_UPPER:Downstream"]
+
+      # ---- Outbound: ACCC → SuperNova (alternate path — disable above first) ----
+      # Uncomment to activate SuperNova path instead of LOS:
+      # - from: "ACCC_IN:Upstream"
+      #   to: ["SUPERNOVA_AIR:Downstream"]
+
+      # ---- Inbound: LOS reply → ACCC ----
+      - from: "LOS_UPPER:Upstream"
+        to: ["ACCC_IN:Downstream"]
+
+      # ---- Inbound: SuperNova reply → ACCC ----
+      - from: "SUPERNOVA_AIR:Upstream"
+        to: ["ACCC_IN:Downstream"]
+
+  reconnect:
+    intervalSeconds: 5
+    maxAttempts: 0              # Retry indefinitely
+
+  queue:
+    maxSizePerConnection: 1000
+    overflowPolicy: DropOldest
+
+  socket:
+    noDelay: true
+    receiveBufferSize: 65536
+    sendBufferSize: 65536
+    keepAlive: true
+
+  buffer:
+    readBufferSize: 4096
+
+logging:
+  minimumLevel: Information
+  console:
+    enabled: true
+  file:
+    enabled: true
+    path: "logs/fofi-air-.log"
+    rollingInterval: Day
+    retainedFileCount: 14
+
+metrics:
+  enabled: true
+  reportIntervalSeconds: 10
+  prometheus:
+    enabled: false
+    port: 9090
+
+dashboard:
+  enabled: true
+  statusHost: "0.0.0.0"
+  statusPort: 19001
+  pushIntervalMs: 200
+  commandPort: 19002
+  upstreamLabel: "FOFI GROUND"

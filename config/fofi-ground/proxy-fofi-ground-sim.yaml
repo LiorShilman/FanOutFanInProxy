@@ -1,0 +1,102 @@
+proxy:
+  # FOFI GROUND -- Simulation Config  (all on localhost)
+  #
+  # Two channels mirror the two air-side paths:
+  #   LOS_IN  : receives from FOFI AIR via LOS   (:5200) -> GCCC sim (:5300)
+  #   SNV_IN  : receives from FOFI AIR via SNV   (:5202) -> GCCC sim (:5300)
+  #
+  # The dashboard shows which channel has active data flow:
+  #   LOS active  -> LOS_IN shows traffic,  SNV_IN shows no data
+  #   SNV active  -> SNV_IN shows traffic,  LOS_IN shows no data
+  #
+  # UPGRADE to real hardware:
+  #   LOS_IN downstream: port 5200, listenIp 0.0.0.0
+  #   SNV_IN downstream: port 5202, listenIp 0.0.0.0  (or SuperNova-G connects here)
+  #   Both upstreams: host=10.10.5.10  port=7000
+
+  channels:
+    # LOS_IN -- data from FOFI AIR via LOS path
+    - name: LOS_IN
+      downstreamLabel: "FOFI AIR"
+      upstream:
+        protocol: Tcp
+        mode: Client
+        host: "127.0.0.1"
+        port: 5300         # GCCC sim
+      downstream:
+        protocol: Tcp
+        mode: Server
+        listenIp: "127.0.0.1"
+        port: 5200         # FOFI AIR LOS:Upstream connects here
+
+    # SNV_IN -- data from FOFI AIR via SNV path
+    - name: SNV_IN
+      downstreamLabel: "FOFI AIR"
+      upstream:
+        protocol: Tcp
+        mode: Client
+        host: "127.0.0.1"
+        port: 5300         # same GCCC sim (two connections)
+      downstream:
+        protocol: Tcp
+        mode: Server
+        listenIp: "127.0.0.1"
+        port: 5202         # FOFI AIR SNV:Upstream connects here
+
+  downstreams: []
+
+  routing:
+    rules:
+      # LOS path: bidirectional
+      - from: "LOS_IN:Downstream"
+        to: ["LOS_IN:Upstream"]        # FOFI AIR -> GCCC via LOS
+      - from: "LOS_IN:Upstream"
+        to: ["LOS_IN:Downstream"]      # GCCC replies -> FOFI AIR via LOS
+
+      # SNV path: bidirectional
+      - from: "SNV_IN:Downstream"
+        to: ["SNV_IN:Upstream"]        # FOFI AIR -> GCCC via SNV
+      - from: "SNV_IN:Upstream"
+        to: ["SNV_IN:Downstream"]      # GCCC replies -> FOFI AIR via SNV
+
+  reconnect:
+    intervalSeconds: 3
+    maxAttempts: 0
+
+  queue:
+    maxSizePerConnection: 1000
+    overflowPolicy: DropOldest
+
+  socket:
+    noDelay: true
+    receiveBufferSize: 65536
+    sendBufferSize: 65536
+    keepAlive: true
+
+  buffer:
+    readBufferSize: 4096
+
+logging:
+  minimumLevel: Debug
+  console:
+    enabled: true
+  file:
+    enabled: true
+    path: "logs/fofi-ground-sim-.log"
+    rollingInterval: Day
+    retainedFileCount: 7
+
+metrics:
+  enabled: true
+  reportIntervalSeconds: 5
+  prometheus:
+    enabled: false
+    port: 9090
+
+dashboard:
+  enabled: true
+  statusHost: "127.0.0.1"
+  statusPort: 19011
+  pushIntervalMs: 100
+  commandPort: 19012
+  upstreamLabel: "GCCC"

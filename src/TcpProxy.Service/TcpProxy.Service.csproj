@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\TcpProxy.Core\TcpProxy.Core.csproj" />
+    <ProjectReference Include="..\TcpProxy.Configuration\TcpProxy.Configuration.csproj" />
+    <ProjectReference Include="..\TcpProxy.Logging\TcpProxy.Logging.csproj" />
+    <ProjectReference Include="..\TcpProxy.Metrics\TcpProxy.Metrics.csproj" />
+    <ProjectReference Include="..\TcpProxy.Networking\TcpProxy.Networking.csproj" />
+    <ProjectReference Include="..\TcpProxy.Routing\TcpProxy.Routing.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <Reference Include="System.ServiceProcess" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\config\local-test\proxy.yaml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>config\proxy.yaml</Link>
+    </Content>
+  </ItemGroup>
+</Project>

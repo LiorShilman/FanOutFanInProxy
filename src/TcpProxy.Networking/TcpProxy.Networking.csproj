@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\TcpProxy.Core\TcpProxy.Core.csproj" />
+    <ProjectReference Include="..\TcpProxy.Metrics\TcpProxy.Metrics.csproj" />
+  </ItemGroup>
+</Project>

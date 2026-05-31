@@ -1,0 +1,95 @@
+proxy:
+  channels:
+    - name: MC
+      upstream:
+        protocol: Tcp
+        mode: Client
+        host: "127.0.0.1"
+        port: 28000             # Proxy connects TO upstream server
+      downstream:
+        protocol: Tcp
+        mode: Server
+        listenIp: "127.0.0.1"
+        port: 28100             # Downstreams connect TO proxy here
+
+    - name: DATA
+      upstream:
+        protocol: Tcp
+        mode: Client
+        host: "127.0.0.1"
+        port: 28001             # Proxy connects TO upstream server
+      downstream:
+        protocol: Tcp
+        mode: Server
+        listenIp: "127.0.0.1"
+        port: 28101             # Downstreams connect TO proxy here
+
+  # ── Downstream slots ─────────────────────────────────────────────────────
+  # Add/remove entries here to change DS count. Each DS gets one socket per
+  # channel above (MC + DATA). The downstream simulator reads this section.
+  downstreams:
+    - name: DSA
+      minIntervalMs: 100
+      maxIntervalMs: 700
+    - name: DSB
+      minIntervalMs: 200
+      maxIntervalMs: 1000
+    - name: DSC
+      minIntervalMs: 150
+      maxIntervalMs: 900
+
+  # ── Routing rules ─────────────────────────────────────────────────────────
+  # from: "<channel>:Upstream"   or "<channel>:Downstream"
+  # to:   list of "<channel>:Upstream" or "<channel>:Downstream" targets
+  # Default when no rules: same-channel fan-out / fan-in.
+  routing:
+    rules:
+      - from: "MC:Upstream"
+        to: ["MC:Downstream"]
+      - from: "DATA:Upstream"
+        to: ["DATA:Downstream"]
+      - from: "MC:Downstream"
+        to: ["MC:Upstream"]
+      - from: "DATA:Downstream"
+        to: ["DATA:Upstream"]
+
+  reconnect:
+    intervalSeconds: 3
+    maxAttempts: 0
+
+  queue:
+    maxSizePerConnection: 1000
+    overflowPolicy: DropOldest
+
+  socket:
+    noDelay: true
+    receiveBufferSize: 65536
+    sendBufferSize: 65536
+    keepAlive: false
+
+  buffer:
+    readBufferSize: 4096
+
+logging:
+  minimumLevel: Debug
+  console:
+    enabled: true
+  file:
+    enabled: true
+    path: "logs/proxy-local-.log"
+    rollingInterval: Day
+    retainedFileCount: 7
+
+metrics:
+  enabled: true
+  reportIntervalSeconds: 5
+  prometheus:
+    enabled: false
+    port: 9090
+
+dashboard:
+  enabled: true
+  statusHost: "127.0.0.1"
+  statusPort: 19001
+  pushIntervalMs: 100
+  commandPort: 19002

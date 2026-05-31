@@ -1,0 +1,107 @@
+proxy:
+  # FOFI AIR -- Simulation Config  (all on localhost)
+  #
+  # What the proxy does:
+  #   ACCC sends data in -> proxy -> routes it out through LOS or SNV -> FOFI GROUND
+  #   FOFI GROUND sends replies back -> proxy -> replies reach ACCC
+  #
+  # Two channels give the dashboard a SWITCH between paths:
+  #   LOS  : ACCC (:5100) <-> FOFI GROUND (:5200)   [ACTIVE by default]
+  #   SNV  : ACCC (:5101) <-> SuperNova-A (:5202)    [BLOCKED by default]
+  #
+  # HOW TO SWITCH (in the FOFI AIR dashboard ROUTING panel):
+  #   To use LOS:  LOS:Downstream -> LOS:Upstream [green]  /  SNV:Downstream 0 routes (blocked)
+  #   To use SNV:  SNV:Downstream -> SNV:Upstream [green]  /  LOS:Downstream 0 routes (blocked)
+  #
+  # UPGRADE to real hardware (no code change needed):
+  #   LOS upstream: host=10.10.2.10  port=6000
+  #   SNV upstream: host=10.10.3.10  port=6000
+
+  channels:
+    # LOS  -- primary path.  ACCC connects on :5100.  Proxy connects to FOFI GROUND :5200.
+    - name: LOS
+      upstream:
+        protocol: Tcp
+        mode: Client
+        host: "127.0.0.1"
+        port: 5200
+      downstream:
+        protocol: Tcp
+        mode: Server
+        listenIp: "127.0.0.1"
+        port: 5100
+
+    # SNV  -- alternate path.  ACCC connects on :5101.  Proxy connects to SuperNova-A :5202.
+    # Port 5202 is not running in basic Sim mode.
+    - name: SNV
+      upstream:
+        protocol: Tcp
+        mode: Client
+        host: "127.0.0.1"
+        port: 5202
+      downstream:
+        protocol: Tcp
+        mode: Server
+        listenIp: "127.0.0.1"
+        port: 5101
+
+  downstreams:
+    - name: ACCC
+      minIntervalMs: 500
+      maxIntervalMs: 2000
+
+  routing:
+    rules:
+      # --- LOS path ACTIVE (default) ---
+      - from: "LOS:Downstream"
+        to: ["LOS:Upstream"]        # ACCC data -> FOFI GROUND via LOS
+      - from: "LOS:Upstream"
+        to: ["LOS:Downstream"]      # FOFI GROUND replies -> ACCC
+
+      # --- SNV path BLOCKED (standby -- no reconnect warnings) ---
+      - from: "SNV:Downstream"
+        to: []                      # blocked at startup
+      - from: "SNV:Upstream"
+        to: []                      # blocked at startup
+
+  reconnect:
+    intervalSeconds: 3
+    maxAttempts: 0
+
+  queue:
+    maxSizePerConnection: 1000
+    overflowPolicy: DropOldest
+
+  socket:
+    noDelay: true
+    receiveBufferSize: 65536
+    sendBufferSize: 65536
+    keepAlive: true
+
+  buffer:
+    readBufferSize: 4096
+
+logging:
+  minimumLevel: Debug
+  console:
+    enabled: true
+  file:
+    enabled: true
+    path: "logs/fofi-air-sim-.log"
+    rollingInterval: Day
+    retainedFileCount: 7
+
+metrics:
+  enabled: true
+  reportIntervalSeconds: 5
+  prometheus:
+    enabled: false
+    port: 9090
+
+dashboard:
+  enabled: true
+  statusHost: "127.0.0.1"
+  statusPort: 19001
+  pushIntervalMs: 100
+  commandPort: 19002
+  upstreamLabel: "FOFI GROUND"

@@ -1,0 +1,212 @@
+<UserControl x:Class="TcpProxy.Dashboard.Views.ConfigCanvasControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource BrBgDark}"
+             KeyDown="UserControl_KeyDown"
+             Focusable="True">
+
+  <UserControl.Resources>
+
+    <!-- ── Dark TextBox ────────────────────────────────────────────────────── -->
+    <Style TargetType="TextBox">
+      <Setter Property="Background"      Value="#FF0D0D1C"/>
+      <Setter Property="Foreground"      Value="#FFEAEAEA"/>
+      <Setter Property="BorderBrush"     Value="#FF3A3A5E"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CaretBrush"      Value="#FFEAEAEA"/>
+      <Setter Property="SelectionBrush"  Value="#664FC3F7"/>
+      <Setter Property="Padding"         Value="6,4"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TextBox">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="3"
+                    Padding="{TemplateBinding Padding}">
+              <ScrollViewer x:Name="PART_ContentHost" Focusable="False"
+                            HorizontalScrollBarVisibility="Hidden"
+                            VerticalScrollBarVisibility="Hidden"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsFocused" Value="True">
+                <Setter TargetName="Bd" Property="BorderBrush" Value="#FF4FC3F7"/>
+              </Trigger>
+              <Trigger Property="IsReadOnly" Value="True">
+                <Setter Property="Foreground" Value="#FF9E9E9E"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- ── Dark ComboBox toggle button ───────────────────────────────────── -->
+    <ControlTemplate x:Key="DarkComboToggle" TargetType="ToggleButton">
+      <Border x:Name="Bd"
+              Background="{TemplateBinding Background}"
+              BorderBrush="{TemplateBinding BorderBrush}"
+              BorderThickness="{TemplateBinding BorderThickness}"
+              CornerRadius="3">
+        <Path Data="M 0 0 L 4 4 L 8 0 Z"
+              Fill="#FF9E9E9E" HorizontalAlignment="Right"
+              VerticalAlignment="Center" Margin="0,0,8,0"/>
+      </Border>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter TargetName="Bd" Property="BorderBrush" Value="#FF4FC3F7"/>
+        </Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <!-- ── Dark ComboBox ──────────────────────────────────────────────────── -->
+    <Style TargetType="ComboBox">
+      <Setter Property="Background"      Value="#FF0D0D1C"/>
+      <Setter Property="Foreground"      Value="#FFEAEAEA"/>
+      <Setter Property="BorderBrush"     Value="#FF3A3A5E"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding"         Value="6,4"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ComboBox">
+            <Grid>
+              <ToggleButton x:Name="ToggleButton"
+                            Template="{StaticResource DarkComboToggle}"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay,
+                                        RelativeSource={RelativeSource TemplatedParent}}"
+                            Focusable="False"/>
+              <ContentPresenter x:Name="ContentSite"
+                                IsHitTestVisible="False"
+                                Content="{TemplateBinding SelectionBoxItem}"
+                                ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                Margin="8,0,24,0"
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Left"/>
+              <Popup x:Name="PART_Popup"
+                     Placement="Bottom"
+                     IsOpen="{TemplateBinding IsDropDownOpen}"
+                     AllowsTransparency="True"
+                     Focusable="False"
+                     PopupAnimation="Slide">
+                <Border Background="#FF1A1A2E"
+                        BorderBrush="#FF3A3A5E"
+                        BorderThickness="1"
+                        MinWidth="{TemplateBinding ActualWidth}"
+                        MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                  <ScrollViewer>
+                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                  </ScrollViewer>
+                </Border>
+              </Popup>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Resources>
+        <Style TargetType="ComboBoxItem">
+          <Setter Property="Background"      Value="Transparent"/>
+          <Setter Property="Foreground"      Value="#FFEAEAEA"/>
+          <Setter Property="Padding"         Value="8,5"/>
+          <Setter Property="BorderThickness" Value="0"/>
+          <Setter Property="Template">
+            <Setter.Value>
+              <ControlTemplate TargetType="ComboBoxItem">
+                <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                        Padding="{TemplateBinding Padding}">
+                  <ContentPresenter/>
+                </Border>
+                <ControlTemplate.Triggers>
+                  <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Bd" Property="Background" Value="#FF2A2A3E"/>
+                  </Trigger>
+                  <Trigger Property="IsSelected" Value="True">
+                    <Setter TargetName="Bd" Property="Background" Value="#FF1A3550"/>
+                    <Setter Property="Foreground" Value="#FF4FC3F7"/>
+                  </Trigger>
+                </ControlTemplate.Triggers>
+              </ControlTemplate>
+            </Setter.Value>
+          </Setter>
+        </Style>
+      </Style.Resources>
+    </Style>
+
+  </UserControl.Resources>
+
+  <DockPanel>
+
+    <!-- ══ Toolbar ══════════════════════════════════════════════════════════ -->
+    <Border DockPanel.Dock="Top" Background="#FF111120"
+            BorderBrush="#FF1E1E3A" BorderThickness="0,0,0,1" Padding="14,7">
+      <Grid>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Text="PROXY CONFIG BUILDER" FontSize="11" FontWeight="Bold"
+                     Foreground="{StaticResource BrAccent}" VerticalAlignment="Center"
+                     Margin="0,0,22,0"/>
+          <Button x:Name="BtnAddChannel"    Content="+ PROXY CHANNEL"  Click="AddChannel_Click"   Tag="blue"/>
+          <Button x:Name="BtnAddDs"         Content="+ DS SIMULATOR"   Click="AddDs_Click"        Tag="blue" Margin="6,0,0,0"/>
+          <Rectangle Width="1" Fill="#FF1E1E3A" Margin="14,4"/>
+          <Button x:Name="BtnDelete" Content="DELETE" Click="Delete_Click" Tag="red"
+                  IsEnabled="False" Margin="0,0,0,0"/>
+          <Rectangle Width="1" Fill="#FF1E1E3A" Margin="14,4"/>
+          <Button x:Name="BtnLoad"   Content="LOAD YAML"   Click="Load_Click"   Tag="blue"/>
+        </StackPanel>
+        <Button x:Name="BtnSave" HorizontalAlignment="Right"
+                Content="SAVE CONFIG" Click="Save_Click" Tag="green"/>
+      </Grid>
+    </Border>
+
+    <!-- ══ Main layout: canvas + properties ═════════════════════════════════ -->
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="1"/>
+        <ColumnDefinition Width="288"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- Canvas host -->
+      <ScrollViewer Grid.Column="0"
+                    HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Auto"
+                    Background="#FF0A0A14">
+        <Canvas x:Name="MainCanvas" Width="1600" Height="1000"
+                MouseDown="Canvas_MouseDown"
+                MouseMove="Canvas_MouseMove"
+                MouseUp="Canvas_MouseUp">
+          <Canvas.Background>
+            <DrawingBrush TileMode="Tile" Viewport="0,0,24,24" ViewportUnits="Absolute">
+              <DrawingBrush.Drawing>
+                <GeometryDrawing Brush="#FF1E1E3A">
+                  <GeometryDrawing.Geometry>
+                    <EllipseGeometry Center="12,12" RadiusX="0.9" RadiusY="0.9"/>
+                  </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+              </DrawingBrush.Drawing>
+            </DrawingBrush>
+          </Canvas.Background>
+        </Canvas>
+      </ScrollViewer>
+
+      <!-- Vertical divider -->
+      <Border Grid.Column="1" Background="#FF1E1E3A"/>
+
+      <!-- Properties panel -->
+      <DockPanel Grid.Column="2" Background="#FF0F0F1E">
+        <Border DockPanel.Dock="Top" Background="#FF111120"
+                BorderBrush="#FF1E1E3A" BorderThickness="0,0,0,1" Padding="14,9">
+          <TextBlock x:Name="TbPropsHeader" Text="PROPERTIES"
+                     FontSize="11" FontWeight="Bold"
+                     Foreground="{StaticResource BrAccent}"/>
+        </Border>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel x:Name="PropsPanel" Margin="14,10,14,14"/>
+        </ScrollViewer>
+      </DockPanel>
+    </Grid>
+
+  </DockPanel>
+</UserControl>

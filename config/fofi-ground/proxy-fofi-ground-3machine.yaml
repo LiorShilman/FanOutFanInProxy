@@ -1,0 +1,132 @@
+proxy:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # FOFI GROUND — 3-Machine UDP Test  (Machine C)
+  #
+  # ACCC->GCCC (forward):
+  #   B ──:5200 (LOS)──► C ──:7000──► A
+  #   B ──:5202 (SNV)──►
+  #
+  # GCCC->ACCC (reverse):
+  #   A ──:7100──► C ──:5210 (LOS)──► B
+  #                  ──:5212 (SNV)──►
+  #
+  # !! החלף MACHINE_A_IP ב-IP של Machine A !!
+  # !! החלף MACHINE_B_IP ב-IP של Machine B !!
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  channels:
+    # ── ACCC->GCCC (forward) ─────────────────────────────────────────────────
+    - name: LOS_IN
+      upstream:
+        protocol: Udp
+        mode: Client
+        host: "MACHINE_A_IP"   # <-- IP של Machine A
+        port: 7000              # Machine A מקשיב כאן (GCCC receive)
+      downstream:
+        protocol: Udp
+        mode: Server
+        listenIp: "0.0.0.0"
+        port: 5200              # FOFI AIR LOS_UPPER שולח לכאן
+
+    - name: SNV_IN
+      upstream:
+        protocol: Udp
+        mode: Client
+        host: "MACHINE_A_IP"   # <-- IP של Machine A
+        port: 7000              # אותו GCCC, פורט זהה
+      downstream:
+        protocol: Udp
+        mode: Server
+        listenIp: "0.0.0.0"
+        port: 5202              # FOFI AIR SUPERNOVA_AIR שולח לכאן
+
+    # ── GCCC->ACCC (reverse) ─────────────────────────────────────────────────
+    - name: GCCC_IN
+      upstream:
+        protocol: Udp
+        mode: Server
+        listenIp: "0.0.0.0"
+        port: 7100              # Machine A שולח לכאן (GCCC send)
+
+    - name: LOS_LOWER
+      downstream:
+        protocol: Udp
+        mode: Client
+        host: "MACHINE_B_IP"   # <-- IP של Machine B (FOFI AIR)
+        port: 5210              # FOFI AIR LOS_REV מקשיב כאן
+
+    - name: SNV_LOWER
+      downstream:
+        protocol: Udp
+        mode: Client
+        host: "MACHINE_B_IP"   # <-- IP של Machine B (FOFI AIR)
+        port: 5212              # FOFI AIR SNV_REV מקשיב כאן
+
+  downstreams: []
+
+  routing:
+    rules:
+      # ACCC->GCCC (forward)
+      - from: "LOS_IN:Downstream"
+        to: ["LOS_IN:Upstream"]         # B -> C -> A (LOS)
+
+      - from: "LOS_IN:Upstream"
+        to: ["LOS_IN:Downstream"]       # A -> C -> B (אם A שולח בחזרה)
+
+      - from: "SNV_IN:Downstream"
+        to: ["SNV_IN:Upstream"]         # B -> C -> A (SNV)
+
+      - from: "SNV_IN:Upstream"
+        to: ["SNV_IN:Downstream"]       # A -> C -> B (אם A שולח בחזרה)
+
+      # GCCC->ACCC (reverse)
+      - from: "GCCC_IN:Upstream"
+        to: ["LOS_LOWER:Downstream"]    # LOS active by default
+
+      - from: "LOS_LOWER:Upstream"
+        to: ["GCCC_IN:Downstream"]      # symmetric -- enables dashboard PATH detection
+
+      - from: "SNV_LOWER:Upstream"
+        to: ["GCCC_IN:Downstream"]      # symmetric -- enables dashboard PATH detection
+
+  reconnect:
+    intervalSeconds: 5
+    maxAttempts: 0
+
+  queue:
+    maxSizePerConnection: 1000
+    overflowPolicy: DropOldest
+
+  socket:
+    noDelay: true
+    receiveBufferSize: 65536
+    sendBufferSize: 65536
+    keepAlive: true
+
+  buffer:
+    readBufferSize: 4096
+
+logging:
+  minimumLevel: Information
+  console:
+    enabled: true
+  file:
+    enabled: true
+    path: "logs/fofi-ground-3machine-.log"
+    rollingInterval: Day
+    retainedFileCount: 7
+
+metrics:
+  enabled: true
+  reportIntervalSeconds: 10
+  prometheus:
+    enabled: false
+    port: 9090
+
+dashboard:
+  enabled: true
+  statusHost: "0.0.0.0"
+  statusPort: 19011
+  pushIntervalMs: 200
+  commandPort: 19012
+  upstreamLabel: "GCCC"

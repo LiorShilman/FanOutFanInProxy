@@ -1,0 +1,69 @@
+<UserControl x:Class="TcpProxy.Dashboard.Views.FlowCanvasControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="Transparent">
+  <Viewbox Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+
+    <!-- Fixed 520×310 canvas — Viewbox scales to fit -->
+    <Canvas x:Name="FlowCanvas" Width="520" Height="310" ClipToBounds="False">
+
+      <!-- ══ Upstream ↔ Proxy static lines (right=fan-out ↓, left=fan-in ↑) ══ -->
+      <Line X1="252" Y1="56"  X2="252" Y2="116" Stroke="#FF4FC3F7" StrokeThickness="2" Opacity="0.35"/>
+      <Line X1="236" Y1="116" X2="236" Y2="56"  Stroke="#FF4CAF50" StrokeThickness="2" Opacity="0.35"/>
+
+      <!-- Arrowheads for US↔Proxy -->
+      <Polygon Points="248,118  256,118  252,126" Fill="#FF4FC3F7" Opacity="0.6"/>
+      <Polygon Points="232,54   240,54   236,46"  Fill="#FF4CAF50" Opacity="0.6"/>
+
+      <!-- ══ Legend ══════════════════════════════════════════════════════════ -->
+      <StackPanel Canvas.Left="4" Canvas.Top="4" Orientation="Horizontal">
+        <Ellipse Width="8" Height="8" Fill="#FF4FC3F7" VerticalAlignment="Center" Margin="0,0,4,0"/>
+        <TextBlock Text="Fan-Out" Foreground="#FF9E9E9E" FontSize="9"/>
+        <Ellipse Width="8" Height="8" Fill="#FF4CAF50" VerticalAlignment="Center" Margin="12,0,4,0"/>
+        <TextBlock Text="Fan-In"  Foreground="#FF9E9E9E" FontSize="9"/>
+      </StackPanel>
+
+      <!-- ══ Upstream node ════════════════════════════════════════════════════ -->
+      <Border Canvas.Left="169" Canvas.Top="10" Width="146" Height="46"
+              CornerRadius="8" BorderThickness="1.5" BorderBrush="#FF4FC3F7">
+        <Border.Background>
+          <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#FF1A3550" Offset="0"/>
+            <GradientStop Color="#FF0D1F30" Offset="1"/>
+          </LinearGradientBrush>
+        </Border.Background>
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+          <TextBlock x:Name="TbUpstreamLabel" Text="UPSTREAM" Foreground="#FF4FC3F7"
+                     FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+          <TextBlock x:Name="TbUpstreamStatus" Text="○  WAITING"
+                     Foreground="OrangeRed" FontSize="9" HorizontalAlignment="Center"/>
+        </StackPanel>
+      </Border>
+
+      <!-- ══ Proxy node (center) ══════════════════════════════════════════════ -->
+      <Border Canvas.Left="178" Canvas.Top="118" Width="128" Height="44"
+              CornerRadius="8" BorderThickness="2" BorderBrush="#FFFFB74D">
+        <Border.Background>
+          <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#FF302000" Offset="0"/>
+            <GradientStop Color="#FF1A1200" Offset="1"/>
+          </LinearGradientBrush>
+        </Border.Background>
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+          <TextBlock Text="PROXY" Foreground="#FFFFB74D"
+                     FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+            <TextBlock x:Name="TbRxProxy" Text=""
+                       Foreground="#FF4FC3F7" FontSize="8" FontFamily="Consolas"/>
+            <TextBlock Text="  " FontSize="8"/>
+            <TextBlock x:Name="TbTxProxy" Text=""
+                       Foreground="#FF4CAF50" FontSize="8" FontFamily="Consolas"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- DS nodes and lines are created dynamically in code-behind -->
+
+    </Canvas>
+  </Viewbox>
+</UserControl>
