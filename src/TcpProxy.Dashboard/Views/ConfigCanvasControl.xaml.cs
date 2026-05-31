@@ -51,6 +51,13 @@ namespace TcpProxy.Dashboard.Views
             public string DsProtocol  = "Tcp";
             public string DsMode      = "Server";
 
+            // Which sides are explicitly configured in the YAML.
+            // New channels (added via button) have both; loaded channels
+            // may have only one — SAVE respects this to avoid injecting
+            // a phantom downstream into upstream-only channels like ACCC_IN.
+            public bool HasUpstream   = true;
+            public bool HasDownstream = true;
+
             public double X, Y;
 
             // Visual elements owned by this node
@@ -297,8 +304,8 @@ namespace TcpProxy.Dashboard.Views
         private void UpdateNodeLabels(ChannelNode n)
         {
             n.NameTb.Text = n.Name;
-            n.UpTb.Text   = $"↑ {n.UpProtocol} {n.UpMode}  {n.UpHost}:{n.UpPort}";
-            n.DsTb.Text   = $"↓ {n.DsProtocol} {n.DsMode}  {n.DsListenIp}:{n.DsPort}";
+            n.UpTb.Text   = n.HasUpstream   ? $"↑ {n.UpProtocol} {n.UpMode}  {n.UpHost}:{n.UpPort}"     : "";
+            n.DsTb.Text   = n.HasDownstream ? $"↓ {n.DsProtocol} {n.DsMode}  {n.DsListenIp}:{n.DsPort}" : "";
         }
 
         // ── Port / arrow coordinates ──────────────────────────────────────────
@@ -707,56 +714,40 @@ namespace TcpProxy.Dashboard.Views
                 if (_selected == n) TbPropsHeader.Text = $"PROXY CHANNEL — {n.Name}";
             });
 
+            // ── Upstream ──────────────────────────────────────────────────────
             AddSep();
-            AddHeader("UPSTREAM — מקור הנתונים");
-            AddCombo("Protocol", new[] { "Tcp", "Udp" }, n.UpProtocol, v =>
+            if (n.HasUpstream)
             {
-                n.UpProtocol = v;
-                UpdateNodeLabels(n);
-            });
-            AddCombo("Mode", new[] { "Client", "Server" }, n.UpMode, v =>
+                AddHeader("UPSTREAM — מקור הנתונים");
+                AddCombo("Protocol", new[] { "Tcp", "Udp" }, n.UpProtocol, v => { n.UpProtocol = v; UpdateNodeLabels(n); });
+                AddCombo("Mode",     new[] { "Client", "Server" }, n.UpMode, v => { n.UpMode = v; UpdateNodeLabels(n); });
+                AddField("Host / Listen IP", n.UpHost, v => { n.UpHost = v; UpdateNodeLabels(n); });
+                AddField("Port", n.UpPort.ToString(), v => { if (int.TryParse(v, out var p)) { n.UpPort = p; UpdateNodeLabels(n); } });
+                AddButton("הסר Upstream", () => { n.HasUpstream = false; UpdateNodeLabels(n); ShowChannelPanel(n); }, "#FF888899");
+            }
+            else
             {
-                n.UpMode = v;
-                UpdateNodeLabels(n);
-            });
-            AddField("Host", n.UpHost, v =>
+                AddButton("+ הוסף Upstream", () => { n.HasUpstream = true; UpdateNodeLabels(n); ShowChannelPanel(n); });
+            }
+
+            // ── Downstream ────────────────────────────────────────────────────
+            AddSep();
+            if (n.HasDownstream)
             {
-                n.UpHost = v;
-                UpdateNodeLabels(n);
-            });
-            AddField("Port", n.UpPort.ToString(), v =>
+                AddHeader("DOWNSTREAM — יעד הנתונים");
+                AddCombo("Protocol", new[] { "Tcp", "Udp" }, n.DsProtocol, v => { n.DsProtocol = v; UpdateNodeLabels(n); });
+                AddCombo("Mode",     new[] { "Server", "Client" }, n.DsMode, v => { n.DsMode = v; UpdateNodeLabels(n); });
+                AddField("Host / Listen IP", n.DsListenIp, v => { n.DsListenIp = v; UpdateNodeLabels(n); });
+                AddField("Port", n.DsPort.ToString(), v => { if (int.TryParse(v, out var p)) { n.DsPort = p; UpdateNodeLabels(n); } });
+                AddButton("הסר Downstream", () => { n.HasDownstream = false; UpdateNodeLabels(n); ShowChannelPanel(n); }, "#FF888899");
+            }
+            else
             {
-                if (int.TryParse(v, out var p)) { n.UpPort = p; UpdateNodeLabels(n); }
-            });
+                AddButton("+ הוסף Downstream", () => { n.HasDownstream = true; UpdateNodeLabels(n); ShowChannelPanel(n); });
+            }
 
             AddSep();
-            AddHeader("DOWNSTREAM — יעד הנתונים");
-            AddCombo("Protocol", new[] { "Tcp", "Udp" }, n.DsProtocol, v =>
-            {
-                n.DsProtocol = v;
-                UpdateNodeLabels(n);
-            });
-            AddCombo("Mode", new[] { "Server", "Client" }, n.DsMode, v =>
-            {
-                n.DsMode = v;
-                UpdateNodeLabels(n);
-            });
-            AddField("Listen IP", n.DsListenIp, v =>
-            {
-                n.DsListenIp = v;
-                UpdateNodeLabels(n);
-            });
-            AddField("Port", n.DsPort.ToString(), v =>
-            {
-                if (int.TryParse(v, out var p)) { n.DsPort = p; UpdateNodeLabels(n); }
-            });
-
-            AddSep();
-            AddButton("DELETE CHANNEL", () =>
-            {
-                Select(n);
-                DeleteSelected();
-            }, "#FFF44336");
+            AddButton("DELETE CHANNEL", () => { Select(n); DeleteSelected(); }, "#FFF44336");
         }
 
         private void ShowArrowPanel(RoutingArrow a)
@@ -1013,15 +1004,17 @@ namespace TcpProxy.Dashboard.Views
                     if (trim.StartsWith("- name:"))
                     {
                         cur = CreateChannelNode(xOff, yRow);
-                        cur.Name = Val(trim);
+                        cur.Name          = Val(trim);
+                        cur.HasUpstream   = false;   // will be set true only if the YAML has the section
+                        cur.HasDownstream = false;
                         UpdateNodeLabels(cur);
                         xOff += NodeW + 60;
                         // Wrap to next row every 3 nodes so the canvas stays readable
                         if (_nodes.Count % 3 == 0) { xOff = 80; yRow += NodeH + 60; }
                         inUpstream = false; inDownstream = false;
                     }
-                    else if (cur != null && trim.StartsWith("upstream:"))   { inUpstream = true;  inDownstream = false; }
-                    else if (cur != null && trim.StartsWith("downstream:")) { inUpstream = false; inDownstream = true;  }
+                    else if (cur != null && trim.StartsWith("upstream:"))   { inUpstream = true;  inDownstream = false; cur.HasUpstream   = true; }
+                    else if (cur != null && trim.StartsWith("downstream:")) { inUpstream = false; inDownstream = true;  cur.HasDownstream = true; }
                     else if (cur != null && inUpstream)
                     {
                         if      (trim.StartsWith("protocol:"))                                  cur.UpProtocol = Val(trim);
@@ -1149,22 +1142,28 @@ namespace TcpProxy.Dashboard.Views
             foreach (var n in _nodes)
             {
                 sb.AppendLine($"    - name: {n.Name}");
-                sb.AppendLine($"      upstream:");
-                sb.AppendLine($"        protocol: {n.UpProtocol}");
-                sb.AppendLine($"        mode: {n.UpMode}");
-                if (n.UpMode == "Client")
-                    sb.AppendLine($"        host: \"{n.UpHost}\"");
-                else
-                    sb.AppendLine($"        listenIp: \"{n.UpHost}\"");
-                sb.AppendLine($"        port: {n.UpPort}");
-                sb.AppendLine($"      downstream:");
-                sb.AppendLine($"        protocol: {n.DsProtocol}");
-                sb.AppendLine($"        mode: {n.DsMode}");
-                if (n.DsMode == "Server")
-                    sb.AppendLine($"        listenIp: \"{n.DsListenIp}\"");
-                else
-                    sb.AppendLine($"        host: \"{n.DsListenIp}\"");
-                sb.AppendLine($"        port: {n.DsPort}");
+                if (n.HasUpstream)
+                {
+                    sb.AppendLine($"      upstream:");
+                    sb.AppendLine($"        protocol: {n.UpProtocol}");
+                    sb.AppendLine($"        mode: {n.UpMode}");
+                    if (n.UpMode == "Client")
+                        sb.AppendLine($"        host: \"{n.UpHost}\"");
+                    else
+                        sb.AppendLine($"        listenIp: \"{n.UpHost}\"");
+                    sb.AppendLine($"        port: {n.UpPort}");
+                }
+                if (n.HasDownstream)
+                {
+                    sb.AppendLine($"      downstream:");
+                    sb.AppendLine($"        protocol: {n.DsProtocol}");
+                    sb.AppendLine($"        mode: {n.DsMode}");
+                    if (n.DsMode == "Server")
+                        sb.AppendLine($"        listenIp: \"{n.DsListenIp}\"");
+                    else
+                        sb.AppendLine($"        host: \"{n.DsListenIp}\"");
+                    sb.AppendLine($"        port: {n.DsPort}");
+                }
             }
 
             sb.AppendLine();
